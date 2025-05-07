@@ -1,6 +1,18 @@
 from bs4 import BeautifulSoup
 import os
 from ..utils import get_relevant_images
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception
+
+
+def is_429_error(exc: Exception) -> bool:
+    """True ⇢ retry only when the exception is an HTTP 429."""
+    from requests.exceptions import HTTPError
+    return (
+        isinstance(exc, HTTPError) and
+        exc.response is not None and
+        exc.response.status_code == 429          # “Too many requests”
+    )
+
 
 class FireCrawl:
 
@@ -36,6 +48,14 @@ class FireCrawl:
             server_url = 'https://api.firecrawl.dev'
         return server_url
 
+
+    @retry(
+        retry=retry_if_exception(is_429_error),        
+        wait=wait_exponential(multiplier=1,         
+                              min=10, max=600),     
+        stop=stop_after_attempt(5),             
+        reraise=True                            
+    )
     def scrape(self) -> tuple:
         """
         This function extracts content and title from a specified link using the FireCrawl Python SDK,
@@ -52,16 +72,16 @@ class FireCrawl:
             response = self.firecrawl.scrape_url(url=self.link, formats=["markdown"])
 
             # Check if the page has been scraped success
-            if "error" in response:
-                print("Scrape failed! : " + str(response["error"]))
+            if response.error:
+                print("Scrape failed! : " + str(response.error))
                 return "", [], ""
-            elif response["metadata"]["statusCode"] != 200:
-                print("Scrape failed! : " + str(response))
+            elif response.warning:
+                print("Scrape warning : " + str(response.warning))
                 return "", [], ""
 
             # Extract the content (markdown) and title from FireCrawl response
-            content = response.data.markdown
-            title = response["metadata"]["title"]
+            content = response.markdown
+            title = response.title
 
             # Parse the HTML content of the response to create a BeautifulSoup object for the utility functions
             response_bs = self.session.get(self.link, timeout=4)
@@ -75,5 +95,7 @@ class FireCrawl:
             return content, image_urls, title
 
         except Exception as e:
-            print("Error! : " + str(e))
+            if is_429_error(e):
+                raise e
+            print("Error! : " + type(e).__name__ + ": " + str(e))
             return "", [], ""

@@ -18,6 +18,7 @@ from . import (
     NoDriverScraper,
     TavilyExtract,
     FireCrawl,
+    JinaScraper,
 )
 
 
@@ -113,7 +114,7 @@ class Scraper:
                     )
 
                 if len(content) < 100:
-                    self.logger.warning(f"Content too short or empty for {link}")
+                    self.logger.warning(f"Content too short or empty for {link}: {content}")
                     return {
                         "url": link,
                         "raw_content": None,
@@ -131,7 +132,7 @@ class Scraper:
                 self.logger.info("=" * 50)
 
                 if not content or len(content) < 100:
-                    self.logger.warning(f"Content too short or empty for {link}")
+                    self.logger.warning(f"Content too short or empty for {link}: {content}")
                     return {
                         "url": link,
                         "raw_content": None,
@@ -176,6 +177,7 @@ class Scraper:
             "nodriver": NoDriverScraper,
             "tavily_extract": TavilyExtract,
             "firecrawl": FireCrawl,
+            "jina": JinaScraper,
         }
 
         scraper_key = None
