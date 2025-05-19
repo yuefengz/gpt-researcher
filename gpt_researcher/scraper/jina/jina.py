@@ -95,6 +95,10 @@ class JinaScraper:
             article = simple_json_from_html_string(raw_html, use_readability=True)
             title = article["title"]
 
+            if article["content"] is None:
+                logger.error(f"No content found, raw html: {raw_html}")
+                raise ValueError("No content found in html.")
+
             # cleaned HTML
             soup = BeautifulSoup(article["content"], "html.parser")
 
